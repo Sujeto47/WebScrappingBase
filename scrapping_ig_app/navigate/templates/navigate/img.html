@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizar Imagenes</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'navigate/style.css'%} ">
+</head>
+<body>
+    <header>
+        <div class="page-title-div">
+            <h1 class="page-title">Navegar usuarios</h1>
+        </div>
+    </header>
+    <main>
+        <form action="{% url 'imganalizer' %}" >
+            <ul class="options">
+                <li class="option-block">
+                    <div class="manu-options">
+                        <input type="submit" value="Analizar Imagenes" class="option-button"/>
+                    </div>
+                </li>
+                <li class="option-block">
+                    <div class="manu-options">
+                        <input type="button" onclick="window.location.href='/index';" value="Regresar" class="option-button back"/>                         
+                    </div>
+                </li>
+            </ul>
+            
+        </form>
+    </main>
+</body>
+</html>

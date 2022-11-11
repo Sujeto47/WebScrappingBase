@@ -1,3 +1,4 @@
+from http.client import HTTPResponse
 from warnings import catch_warnings
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,6 +12,19 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 import sys
 
+from selenium.webdriver.edge.options import Options
+import pandas as pd
+from shutil import rmtree
+import csv
+
+from cv2 import cv2
+import easyocr
+import numpy as np
+import imutils
+import os
+import pathlib
+from PIL import Image
+import psycopg2
 
 base_url = "https://www.instagram.com/"
 def main(username, action_type):
@@ -54,6 +68,7 @@ def login(driver, username, action_type):
 
 def navigate_followers(driver,original_user):
     try:
+        print("Aqui estamos")
         url = driver.current_url
         driver.get(url+original_user+"/" )
         time.sleep(2)
@@ -338,3 +353,250 @@ def get_publication_details(driver, post):
             
     except Exception as err:
         print(err)
+#Aqui empieza el codigo de Imagenes
+
+#Main2 es analisis de imagenes
+def main2():
+    #Aqui va el codigo de Sebastian y Diego
+    srute = pathlib.Path().absolute()
+    drute = str(srute)
+    cadena = drute.replace("\\", "/")
+    face_cascade=cv2.CascadeClassifier( cadena + '/xml/haarcascade_frontalface_default.xml')
+    #Se detecta los ojos dentro del rostro a partir de un xml con ruta oabsoluta
+    eye_cascade=cv2.CascadeClassifier( cadena + '/xml/haarcascade_eye.xml')
+    #Se detecta los anteojos dentro del rostro a partir de un xml con ruta oabsoluta
+    eyeg_cascade=cv2.CascadeClassifier( cadena + '/xml/haarcascade_eye_tree_eyeglasses.xml')
+    #Se detecta los anteojos dentro del rostro a partir de un xml con ruta oabsoluta
+    smile_cascade=cv2.CascadeClassifier( cadena + '/xml/haarcascade_smile.xml')
+    #Detector Entrenado
+    train_cascade=cv2.CascadeClassifier( cadena + '/classifier/cascade.xml')
+
+    #Metodo detector de texto
+    lectorTexto = easyocr.Reader(["es"], gpu=False)
+    final_size = 1200
+    z = 0
+    aux = 0
+    with open('navigate_publicationPrueba.csv') as File:
+        reader = csv.reader(File, delimiter=',', quotechar=',',
+                        quoting=csv.QUOTE_MINIMAL)
+        for row in reader:
+            url = str(row)
+            url1 = url.split(';')
+            scomas = url1[1].replace("'","")
+            llave = scomas.replace("]","")
+            llave2 = int(llave.replace(" ",""))
+            if llave2 != aux or z == 0:
+                
+                llave3 = str(llave2)
+                os.chdir(cadena + '/images/Directorio/')
+                if os.path.exists('carpeta' + llave3):
+                    #print("Ya existe")
+                    path = cadena + '/images/Directorio/carpeta' + llave3 +'/images/'
+                    dirs = os.listdir(path)
+                    pathf= cadena + '/images/Directorio/carpeta' + llave3 + '/images1200/'
+                    dirsf = os.listdir(pathf)
+                    pathValida= cadena + '/images/Directorio/carpeta' + llave3 + '/imgValidas/'
+                    pathNoValidas = cadena + '/images/Directorio/carpeta' + llave3 + '/imgNoValidas/'
+                    path5050 = cadena + '/images/Directorio/carpeta' + llave3 + '/img5050/'
+                    def resize():
+                        for item in dirs:
+                            if os.path.isfile(path+item):
+                                im = Image.open(path+item)
+                                f, e = os.path.splitext(pathf+item)
+                                size = im.size
+                                ratio = float(final_size) / max(size)
+                                new_image_size = tuple([int(x * ratio) for x in size])
+                                im = im.resize(new_image_size, Image.ANTIALIAS)
+                                new_im = Image.new("RGB", (final_size, final_size))
+                                new_im.paste(im, ((final_size - new_image_size[0]) // 2, (final_size - new_image_size[1]) // 2))
+                                new_im.save(f + 'resized.jpg', 'JPEG', quality=90)
+
+                    def analisis():
+                        for itemf in dirsf:
+                            print("Entro al for")
+                            if os.path.isfile(pathf+itemf):
+                                print("Entro al if")
+                                imgf = cv2.imread(pathf+itemf)
+                                # Se obtiene en escala de grises
+                                gray = cv2.cvtColor(imgf, cv2.COLOR_BGR2GRAY)
+                                rostro = train_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=50, minSize=(95, 300))
+
+                                # Deteccion de rostros
+                                faces = face_cascade.detectMultiScale(gray, 1.3, 5)  # Imgen gris, Factor de Escala, Vecinos Minimos
+                                a_train = None
+                                b_train = None
+                                face_var = None
+                                smile_var = None
+                                for (x, y, w, h) in faces:
+                                    # Dibuja un rectangulo en en rostro
+                                    face_var = cv2.rectangle(imgf, (x, y), (x + w, y + h), (255, 0, 0),2)  # Imagen, El punto de inicio, El color del rectangulo, Espesor del reactangulo
+                                    # Recorte de la imagen  en el filtro de grises donde se detecta el rostro
+                                    roi_gray = gray[y:y + h, x:x + w]
+                                    roi_color = imgf[y:y + h, x:x + w]
+
+                                    # Se detectan los ojos
+                                    eyes = eye_cascade.detectMultiScale(roi_gray, 1.2, 5)
+                                    # Para cada ojo
+                                    for (ex, ey, ew, eh) in eyes:
+                                        cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (178, 255, 40),
+                                                    2)  # Imagen, El punto de inicio, El color del rectangulo, Espesor del reactangulo
+
+                                    # Se detectan la sonrisa
+                                    smile = smile_cascade.detectMultiScale(roi_gray, 1.2, 50)
+                                    # Para cada ojo
+                                    for (sx, sy, sw, sh) in smile:
+                                        smile_var = cv2.rectangle(roi_color, (sx, sy), (sx + sw, sy + sh), (0, 0, 0),
+                                                    2)  # Imagen, El punto de inicio, El color del rectangulo, Espesor del reactangulo
+
+                                    for (x, y, w, h) in rostro:
+                                        # Filtro Especifico Cascada
+                                        a_train = cv2.rectangle(imgf, (x, y), (x + w, y + h), (255, 178, 215),
+                                                                2)  # Imagen, El punto de inicio, El color del rectangulo, Espesor del reactangulo
+                                        # Recorte de la imagen  en el filtro de grises donde se detecta el rostro
+                                        #b_train = cv2.putText(img, 'Rostro', (x, y - 10), 2, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+                                result = lectorTexto.readtext(imgf)
+                                a_texto = None
+                                for res in result:
+                                    # print('result: ',res)
+                                    pt0n = res[0][0]
+                                    pt1n = res[0][1]
+                                    pt2n = res[0][2]
+                                    pt3n = res[0][3]
+                                    pt0 = list(map(int, pt0n))
+                                    pt1 = list(map(int, pt1n))
+                                    pt2 = list(map(int, pt2n))
+                                    pt3 = list(map(int, pt3n))
+                                    a_texto = cv2.rectangle(imgf, pt0, pt2, (0, 0, 255),
+                                                                2)  # Imagen, El punto de inicio, El color del rectangulo, Espesor del reactangulo
+                                #print(itemf)
+                                saveimg = Image.open(pathf+itemf)
+                                new_im = Image.new("RGB",(final_size,final_size))
+                                new_im.paste(saveimg)
+                                if (face_var is None) or (a_texto is not None):
+                                    print("Imagen No Valida "+itemf)
+                                    new_im.save(pathNoValidas+itemf, 'JPEG', quality=90)
+                                    #cv2.imshow('Image '+itemf , imgf)
+                                    #cv2.waitKey(0)
+                                else:
+                                    if ((face_var is None) and (a_train is not None)) or ((face_var is not None) and (a_train is None)):
+                                        print("Podria ser Valida "+itemf)
+                                        #cv2.imshow('Podria Ser Valida', imgf)
+                                        new_im.save(path5050+itemf, 'JPEG', quality=90)
+                                        #cv2.waitKey(0)
+                                    else:
+                                        if((face_var is not None) and (a_train is not None)):
+                                            print("Imagen Valida "+itemf)
+                                            new_im.save(pathValida+itemf, 'JPEG', quality=90)
+                                            #cv2.imshow('Imagen Valida '+itemf, imgf)
+                                            #cv2.waitKey(0)
+                                        else:
+                                            print("Sin categoria")             
+                                            #cv2.imshow('Sin categoria', imgf) 
+                                            #cv2.waitKey(0)
+                    def db():
+                        conexion1 = psycopg2.connect(database="mental_data_ig", user="postgres", password="root",port="5433")
+                        cursor1=conexion1.cursor()
+                        sql1 = "ALTER TABLE IF EXISTS navigate_publication ADD COLUMN IF NOT EXISTS valid_img INT"
+                        cursor1.execute(sql1)
+                        conexion1.commit()
+                        conexion1.close()
+                    #print("Empezo resize")
+                    resize()
+                    #print("Termino resize")
+                    #print("Empezo analisis")
+                    analisis()
+                    #db()
+                    print("Termino analisis")
+                    aux=llave2
+                    z = 1
+
+#Main3 es descarga de imagenes
+def main3():
+    a = 2
+    edgerute = pathlib.Path().absolute()
+    edgerutef = str(edgerute)
+    
+    def download_insta(link):
+        driver = webdriver.Edge(executable_path= edgerutef + "\\edgedriver_win64\\msedgedriver.exe", options=edge_options)
+        driver.get("https://downloadgram.org/")
+        text_box = driver.find_element("name", "url")
+        text_box.send_keys(link)
+
+        driver.find_element(By.ID, value='submit').click()
+        time.sleep(1)
+        try:
+            driver.find_element(By.LINK_TEXT, value='DOWNLOAD').click()
+            time.sleep(5)
+            #print("Descarga exitosa")
+            driver.close()
+        except:
+            #print("page down")
+            driver.close()
+        return None
+    #Rutas
+    srute = pathlib.Path().absolute()
+    drute = str(srute)
+    cadena = drute.replace("\\", "/")
+    pathcarpeta = cadena + '/images/Directorio/'
+    patheliminar = cadena + '/images/'
+    dir = pathcarpeta
+
+    with open('navigate_publicationPrueba.csv') as File:
+        reader = csv.reader(File, delimiter=',', quotechar=',',
+                        quoting=csv.QUOTE_MINIMAL)
+        os.chdir(patheliminar)
+        if os.path.exists('Directorio'):
+            print("Ya existe Directorio")
+            rmtree("Directorio")
+        if os.path.exists('Directorio') == False:
+            os.mkdir("Directorio")
+        for row in reader:
+            url = str(row)
+            url1 = url.split(';')
+            scomas = url1[1].replace("'","")
+            scomas2 = url1[0].replace("'","")
+            urlf = scomas2.replace("[","")
+            llave = scomas.replace("]","")
+            llave2 = int(llave.replace(" ",""))
+            if llave2 == a:
+                print("URL"+llave)
+                #Creacion
+                b = str(a)
+                os.chdir(dir)
+                if os.path.exists('carpeta' + b):
+                    print("Ya existe")
+                else:
+                    os.mkdir('carpeta' + b)
+                    os.chdir(dir + 'carpeta' + b)
+                    os.mkdir('images')
+                    os.mkdir('images1200')
+                    os.mkdir('img5050')
+                    os.mkdir('imgNoValidas')
+                    os.mkdir('imgValidas')
+                #Ciclo de guardado
+                edge_options = Options()
+                edge_options.add_experimental_option("prefs", {
+                "download.default_directory": drute + "\\images\\Directorio\\carpeta" + b + "\\images\\"})
+                download_insta(urlf)
+            
+            if llave2 != a:
+                print("Entra al 2")
+                #Salto
+                a = a + 1
+                b = str(a)
+                os.chdir(dir)
+                #Nueva creacion de carpeta
+                if os.path.exists('carpeta' + b):
+                    print("Ya existe en ciclo 2")
+                else:
+                    os.mkdir('carpeta' + b)
+                    os.chdir(dir + 'carpeta' + b)
+                    os.mkdir('images')
+                    os.mkdir('images1200')
+                    os.mkdir('img5050')
+                    os.mkdir('imgNoValidas')
+                    os.mkdir('imgValidas')
+                edge_options = Options()
+                edge_options.add_experimental_option("prefs", {
+                    "download.default_directory": drute + "\\images\\Directorio\\carpeta" + b + "\\images\\"})
+                download_insta(urlf)
