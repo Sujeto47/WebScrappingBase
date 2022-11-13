@@ -377,7 +377,7 @@ def main2():
     z = 0
     aux = 0
     count = 0
-    with open('navigate_publicationPrueba.csv') as File:
+    with open('navigate_publication.csv') as File:
         reader = csv.reader(File, delimiter=',', quotechar=',',
                         quoting=csv.QUOTE_MINIMAL)
         for row in reader:
@@ -556,7 +556,7 @@ def main3():
     patheliminar = cadena + '/images/'
     dir = pathcarpeta
 
-    with open('navigate_publicationPrueba.csv') as File:
+    with open('navigate_publication.csv') as File:
         reader = csv.reader(File, delimiter=',', quotechar=',',
                         quoting=csv.QUOTE_MINIMAL)
         os.chdir(patheliminar)
