@@ -376,6 +376,7 @@ def main2():
     final_size = 1200
     z = 0
     aux = 0
+    count = 0
     with open('navigate_publicationPrueba.csv') as File:
         reader = csv.reader(File, delimiter=',', quotechar=',',
                         quoting=csv.QUOTE_MINIMAL)
@@ -412,6 +413,7 @@ def main2():
                                 new_im.save(f + 'resized.jpg', 'JPEG', quality=90)
 
                     def analisis():
+                        print("Entra analisis")
                         for itemf in dirsf:
                             print("Entro al for")
                             if os.path.isfile(pathf+itemf):
@@ -493,22 +495,35 @@ def main2():
                                             print("Sin categoria")             
                                             #cv2.imshow('Sin categoria', imgf) 
                                             #cv2.waitKey(0)
-                    def db():
-                        conexion1 = psycopg2.connect(database="mental_data_ig", user="postgres", password="root",port="5433")
-                        cursor1=conexion1.cursor()
-                        sql1 = "ALTER TABLE IF EXISTS navigate_publication ADD COLUMN IF NOT EXISTS valid_img INT"
-                        cursor1.execute(sql1)
-                        conexion1.commit()
-                        conexion1.close()
+
                     #print("Empezo resize")
                     resize()
                     #print("Termino resize")
                     #print("Empezo analisis")
                     analisis()
-                    #db()
+                    for paths in os.listdir(pathValida):
+                        if os.path.isfile(os.path.join(pathValida, paths)):
+                            count += 1
+                            #Resultado de la cuenta de img positivas
+                            #aux2 = llave2
+                    print(llave2)
+                    print(count)
+                    countstr = str(count)
+                    llavestr = str(llave2)
+                    #Guardado en base de datos
+                    conexion1 = psycopg2.connect(database="mental_data_ig", user="postgres", password="root",port="5433")
+                    cursor1=conexion1.cursor()
+                    sql1 = "ALTER TABLE IF EXISTS navigate_publication ADD COLUMN IF NOT EXISTS valid_img BIGINT"
+                    cursor1.execute(sql1)
+                    conexion1.commit()
+                    sql2 = f"UPDATE navigate_publication SET valid_img = {countstr} WHERE user_id = {llavestr}"
+                    cursor1.execute(sql2)
+                    conexion1.commit()
+                    conexion1.close()
                     print("Termino analisis")
                     aux=llave2
                     z = 1
+                    count = 0
 
 #Main3 es descarga de imagenes
 def main3():
@@ -526,7 +541,7 @@ def main3():
         time.sleep(1)
         try:
             driver.find_element(By.LINK_TEXT, value='DOWNLOAD').click()
-            time.sleep(5)
+            time.sleep(8)
             #print("Descarga exitosa")
             driver.close()
         except:
